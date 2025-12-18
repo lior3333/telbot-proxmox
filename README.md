@@ -119,15 +119,18 @@ python3 main.py
 
 ---
 
-## 🚧 Roadmap
+## 🗺 Roadmap
 
-* Inline keyboard confirmations
-* VM and LXC restart actions
-* Role-based access control
-* Resource metrics (CPU / RAM / uptime)
-* Audit log export
+Planned features and improvements:
 
----
+- 🔁 Restart VM and LXC containers
+- ⌨️ Inline keyboard confirmations (no text replies)
+- 👥 Role-based access (admin / read-only users)
+- 📊 Resource metrics (CPU, RAM, uptime)
+- 📝 Audit log export (CSV / JSON)
+- 🚀 Improved error handling and retries
+
+The roadmap may evolve based on real-world usage and feedback.
 
 ## 📄 License
 
