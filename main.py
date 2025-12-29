@@ -150,12 +150,11 @@ def handle_vm_id(message):
     users[chat_id]["data"]["vm_id"] = vm_id
 
     try:
-        # ---- פעולה מיידית ----
+    
         if action == "status":
             handle_vm_status(message, px)
             return
 
-        # ---- פעולות שדורשות אישור ----
         if action in ("start", "stop"):
             users[chat_id]["state"] = CONFIRM_ACTION
 
@@ -217,7 +216,7 @@ def handle_vm_confirm(message, px):
     data = users[chat_id].get("data", {})
     action = data.get("action")
 
-    # פעולות שדורשות אישור yes/no
+    # yes/no
     if action in ("shutdown_host", "start", "stop"):
         if text not in YES_VALUES + NO_VALUES:
             bot.send_message(chat_id, "Please answer yes or no")
