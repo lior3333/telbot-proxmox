@@ -20,7 +20,7 @@ logging.basicConfig(
             maxBytes=5 * 1024 * 1024,  # 5MB
             backupCount=5
         ),
-        logging.StreamHandler()  # גם למסך
+        logging.StreamHandler()  # Also to screen
     ]
 )
 
@@ -60,7 +60,7 @@ def show_main_menu(chat_id):
 
     bot.send_message(
         chat_id,
-        "תפריט ראשי – בחר פעולה:",
+        "Main Menu - Select an action:",
         reply_markup=markup
     )
 
@@ -96,7 +96,7 @@ def handle_show_running_resources(message, px):
         running = px.list_running_resources()
 
         if not running:
-            bot.send_message(chat_id, "🟢 אין משאבים פעילים כרגע")
+            bot.send_message(chat_id, "🟢 No active resources at the moment")
             return
 
         lines = []
@@ -110,7 +110,7 @@ def handle_show_running_resources(message, px):
         bot.send_message(chat_id, msg)
 
     except Exception as e:
-        bot.send_message(chat_id, f"❌ שגיאה: {e}")
+        bot.send_message(chat_id, f"❌ Error: {e}")
 
 
 def handle_show_lxc(message, px):
@@ -120,7 +120,7 @@ def handle_show_lxc(message, px):
         lxc = px.list_lxc()
 
         if not lxc:
-            bot.send_message(chat_id, "📦 אין LXC containers")
+            bot.send_message(chat_id, "📦 No LXC containers found")
             return
 
         msg = "\n".join(
@@ -131,7 +131,7 @@ def handle_show_lxc(message, px):
         bot.send_message(chat_id, msg)
 
     except Exception as e:
-        bot.send_message(chat_id, f"❌ שגיאה: {e}")
+        bot.send_message(chat_id, f"❌ Error: {e}")
 
 
 
@@ -141,7 +141,7 @@ def handle_vm_id(message):
     text = message.text.strip()
 
     if not text.isdigit():
-        bot.send_message(chat_id, "אנא הזן מספר VM תקין")
+        bot.send_message(chat_id, "Please enter a valid VM number")
         return
 
     vm_id = int(text)
@@ -170,17 +170,17 @@ def handle_vm_id(message):
 
             bot.send_message(
                 chat_id,
-                f"האם אתה בטוח שברצונך לבצע {action} על VM {vm_id}?",
+                f"Are you sure you want to perform {action} on VM {vm_id}?",
                 reply_markup=kb
             )
             return
 
-        bot.send_message(chat_id, "פעולה לא מוכרת")
+        bot.send_message(chat_id, "Unknown action")
         users[chat_id]["data"] = {}
         show_main_menu(chat_id)
 
     except Exception as e:
-        bot.send_message(chat_id, f"❌ שגיאה: {e}")
+        bot.send_message(chat_id, f"❌ Error: {e}")
         users[chat_id]["data"] = {}
         show_main_menu(chat_id)
 
@@ -195,13 +195,13 @@ def handle_vm_status(message, px):
 
         bot.send_message(
             chat_id,
-            f"ℹ️ סטטוס VM {vm_id}: {status}"
+            f"ℹ️ VM Status {vm_id}: {status}"
         )
     except ResourceException as e:
-        bot.send_message(chat_id, f"❌ שגיאת Proxmox: {e}")
+        bot.send_message(chat_id, f"❌ Proxmox Error: {e}")
 
     except Exception as e:
-        bot.send_message(chat_id, f"❌ שגיאה כללית: {e}")
+        bot.send_message(chat_id, f"❌ General Error: {e}")
     
     finally:
             users[chat_id]["data"] = {}
@@ -220,11 +220,11 @@ def handle_vm_confirm(message, px):
     # פעולות שדורשות אישור yes/no
     if action in ("shutdown_host", "start", "stop"):
         if text not in YES_VALUES + NO_VALUES:
-            bot.send_message(chat_id, "ענה yes או no")
+            bot.send_message(chat_id, "Please answer yes or no")
             return
 
         if text in NO_VALUES:
-            bot.send_message(chat_id, "בוטל")
+            bot.send_message(chat_id, "Cancelled")
             users[chat_id]["data"] = {}
             show_main_menu(chat_id)
             return
@@ -243,7 +243,7 @@ def handle_vm_confirm(message, px):
                     )
 
                 msg = (
-                    "⚠️ יש משאבים פעילים, לא ניתן לכבות:\n\n"
+                    "⚠️ Active resources detected, cannot shutdown:\n\n"
                     + "\n".join(lines)
                 )
                 bot.send_message(chat_id, msg)
@@ -252,7 +252,7 @@ def handle_vm_confirm(message, px):
             logger.critical("SHUTDOWN HOST requested by user %s", chat_id)
             bot.send_message(
                 chat_id,
-                "⏻ השרת נכבה כעת. החיבור יתנתק."
+                "⏻ Server is shutting down. Connection will be lost."
             )
             shutdown_host()
             return
@@ -261,7 +261,7 @@ def handle_vm_confirm(message, px):
         elif action in ("start", "stop"):
             vm_id = data.get("vm_id")
             if not vm_id:
-                bot.send_message(chat_id, "❌ VM ID חסר")
+                bot.send_message(chat_id, "❌ Missing VM ID")
                 return
 
             if action == "stop":
@@ -270,11 +270,11 @@ def handle_vm_confirm(message, px):
                 logger.info("STOP VM %s by user %s", vm_id, chat_id)
                 status = px.get_vm_status(vm_id)
                 if status == "stopped":
-                    bot.send_message(chat_id, "✅ ה־VM נכבה")
+                    bot.send_message(chat_id, "✅ VM has been stopped")
                 else:
                     bot.send_message(
                         chat_id,
-                        "⚠️ נשלחה בקשה לכיבוי, אך ה־VM עדיין פעיל"
+                        "⚠️ Stop request sent, but VM is still active"
                     )
 
             elif action == "start":
@@ -283,24 +283,24 @@ def handle_vm_confirm(message, px):
                 status = px.get_vm_status(vm_id)
                 if status == "running":
                     logger.info("START VM %s by user %s", vm_id, chat_id)
-                    bot.send_message(chat_id, "✅ ה־VM נדלק")
+                    bot.send_message(chat_id, "✅ VM has been started")
                 else:
                     bot.send_message(
                         chat_id,
-                        "⚠️ נשלחה בקשה להדלקה, אך ה־VM עדיין לא רץ"
+                        "⚠️ Start request sent, but VM is not running yet"
                     )
 
         else:
-            bot.send_message(chat_id, "פעולה לא מוכרת")
+            bot.send_message(chat_id, "Unknown action")
 
     except ResourceException:
         bot.send_message(
             chat_id,
-            "❌ המשאב לא קיים או שלא ניתן לבצע עליו פעולה"
+            "❌ Resource does not exist or action cannot be performed"
         )
 
     except Exception as e:
-        bot.send_message(chat_id, f"❌ שגיאה כללית: {e}")
+        bot.send_message(chat_id, f"❌ General Error: {e}")
 
     finally:
         users[chat_id]["data"] = {}
@@ -318,18 +318,18 @@ def handle_main_menu(message):
     if text == "Stop VM":
         users[chat_id]["data"] = {"action": "stop"}
         users[chat_id]["state"] = WAIT_VM_ID
-        bot.send_message(chat_id, "הכנס VM ID לכיבוי:")
+        bot.send_message(chat_id, "Enter VM ID to stop:")
         return
 
     if text == "Start VM":
         users[chat_id]["data"] = {"action": "start"}
         users[chat_id]["state"] = WAIT_VM_ID
-        bot.send_message(chat_id, "הכנס VM ID להדלקה:")
+        bot.send_message(chat_id, "Enter VM ID to start:")
         return
     if text == "Get vm Status":
         users[chat_id]["data"] = {"action": "status"}
         users[chat_id]["state"] = WAIT_VM_ID
-        bot.send_message(chat_id, "הכנס VM ID לבדיקת סטטוס:")
+        bot.send_message(chat_id, "Enter VM ID to check status:")
         return
     
     if text == "Show lXC":
@@ -345,8 +345,8 @@ def handle_main_menu(message):
         users[chat_id]["state"] = CONFIRM_ACTION
         bot.send_message(
         chat_id,
-        "⚠️ אתה עומד לכבות את השרת עצמו!\n"
-        "האם אתה בטוח? (yes/no)"
+        "⚠️ You are about to shutdown the host!\n"
+        "Are you sure? (yes/no)"
     )
         return
 
@@ -365,14 +365,14 @@ def router(message):
     if user_id not in ALLOWED_USERS:
         bot.send_message(
             chat_id,
-            "❌ אין לך הרשאה להשתמש בבוט הזה"
+            "❌ You are not authorized to use this bot"
         )
         return
     
     if chat_id not in users:
         bot.send_message(
             chat_id,
-            "ברוך הבא 👋\nכדי להתחיל, שלח /start"
+            "Welcome 👋\nTo start, send /start"
         )
         return
     
@@ -390,7 +390,7 @@ def router(message):
     elif state == "WAIT_VM_ID":
         handle_vm_id(message)
     else:
-        bot.send_message(chat_id, "מצב לא ידוע, חוזר לתפריט")
+        bot.send_message(chat_id, "Unknown state, returning to menu")
         show_main_menu(chat_id)
 
 
