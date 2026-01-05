@@ -139,3 +139,29 @@ class ProxmoxClient:
             return {
                 "error": str(e)
             }
+
+    def list_snapshots(self, vmid: int) -> list:
+        try:
+            snapshots = self.proxmox.nodes(PROXMOX_NODE).qemu(vmid).snapshot.get()
+            # Filter out the 'current' pseudo-snapshot if it exists in the list (Proxmox sometimes returns it)
+            return [
+                {
+                    "name": snap.get("name"),
+                    "description": snap.get("description", ""),
+                    "snaptime": snap.get("snaptime"),
+                    "parent": snap.get("parent", "")
+                }
+                for snap in snapshots if snap.get("name") != "current"
+            ]
+        except Exception:
+            return []
+
+    def create_snapshot(self, vmid: int, snapname: str, description: str = "") -> str:
+        try:
+            self.proxmox.nodes(PROXMOX_NODE).qemu(vmid).snapshot.post(
+                snapname=snapname,
+                description=description
+            )
+            return "success"
+        except Exception as e:
+            return str(e)

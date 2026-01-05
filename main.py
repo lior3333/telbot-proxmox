@@ -32,7 +32,9 @@ from config import (
     ALLOWED_USERS,
     MAIN_MENU,
     WAIT_VM_ID,
-    CONFIRM_ACTION
+    CONFIRM_ACTION,
+    SNAPSHOT_MENU,
+    WAIT_SNAPSHOT_NAME
 )
 
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
@@ -56,7 +58,7 @@ def show_main_menu(chat_id):
     users[chat_id]["state"] = MAIN_MENU
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("SHOW VMS", "Stop VM", "Start VM", "Get vm Status", "Show lXC","Show Running")
+    markup.add("SHOW VMS", "Stop VM", "Start VM", "Get vm Status", "Show lXC","Show Running", "📸 Snapshots")
 
     bot.send_message(
         chat_id,
@@ -153,6 +155,10 @@ def handle_vm_id(message):
     
         if action == "status":
             handle_vm_status(message, px)
+            return
+
+        if action == "snapshot_menu":
+            show_snapshot_menu(chat_id)
             return
 
         if action in ("start", "stop"):
@@ -306,6 +312,85 @@ def handle_vm_confirm(message, px):
         show_main_menu(chat_id)
 
 
+def show_snapshot_menu(chat_id):
+    users[chat_id]["state"] = SNAPSHOT_MENU
+    
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add("📂 List Snapshots", "➕ Create Snapshot", "🔙 Back to Main Menu")
+    
+    vm_id = users[chat_id]["data"].get("vm_id")
+    bot.send_message(
+        chat_id, 
+        f"📸 Snapshot Actions for VM {vm_id}:", 
+        reply_markup=markup
+    )
+
+def handle_snapshot_menu(message, px):
+    chat_id = message.chat.id
+    text = message.text
+    vm_id = users[chat_id]["data"].get("vm_id")
+    
+    if text == "🔙 Back to Main Menu":
+        users[chat_id]["data"] = {}
+        show_main_menu(chat_id)
+        return
+
+    if text == "📂 List Snapshots":
+        try:
+            snaps = px.list_snapshots(vm_id)
+            if not snaps:
+                bot.send_message(chat_id, "ℹ️ No snapshots found.")
+                return
+
+            lines = [f"📸 Snapshots for VM {vm_id}:\n"]
+            for snap in snaps:
+                lines.append(f"• *{snap['name']}* ({snap['snaptime']})\n  _{snap['description']}_")
+            
+            bot.send_message(chat_id, "\n".join(lines), parse_mode="Markdown")
+        except Exception as e:
+            bot.send_message(chat_id, f"❌ Error listing snapshots: {e}")
+        return
+
+    if text == "➕ Create Snapshot":
+        users[chat_id]["state"] = WAIT_SNAPSHOT_NAME
+        bot.send_message(
+            chat_id, 
+            "Enter details for the new snapshot:\nFormat: `name` or `name:description`\nExample: `backup1` or `backup1:Monthly backup`",
+            parse_mode="Markdown",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return
+        
+    bot.send_message(chat_id, "Unknown option.")
+
+def handle_create_snapshot_input(message, px):
+    chat_id = message.chat.id
+    text = message.text.strip()
+    vm_id = users[chat_id]["data"].get("vm_id")
+    
+    parts = text.split(":", 1)
+    name = parts[0].strip()
+    desc = parts[1].strip() if len(parts) > 1 else ""
+    
+    if not name:
+        bot.send_message(chat_id, "❌ Invalid name. Please try again.")
+        return
+
+    bot.send_message(chat_id, f"⏳ Creating snapshot '{name}'...")
+    
+    try:
+        result = px.create_snapshot(vm_id, name, desc)
+        if result == "success":
+            bot.send_message(chat_id, f"✅ Snapshot '{name}' created successfully!")
+        else:
+            bot.send_message(chat_id, f"❌ Failed to create snapshot: {result}")
+    except Exception as e:
+        bot.send_message(chat_id, f"❌ Error: {e}")
+        
+    # Return to snapshot menu
+    show_snapshot_menu(chat_id)
+
+
 
 def handle_main_menu(message): 
     chat_id = message.chat.id
@@ -348,6 +433,12 @@ def handle_main_menu(message):
         "Are you sure? (yes/no)"
     )
         return
+    
+    if text == "📸 Snapshots":
+        users[chat_id]["data"] = {"action": "snapshot_menu"}
+        users[chat_id]["state"] = WAIT_VM_ID
+        bot.send_message(chat_id, "Enter VM ID for snapshots:")
+        return
 
 
 
@@ -388,6 +479,12 @@ def router(message):
 
     elif state == "WAIT_VM_ID":
         handle_vm_id(message)
+        
+    elif state == "SNAPSHOT_MENU":
+        handle_snapshot_menu(message, px)
+        
+    elif state == "WAIT_SNAPSHOT_NAME":
+        handle_create_snapshot_input(message, px)
     else:
         bot.send_message(chat_id, "Unknown state, returning to menu")
         show_main_menu(chat_id)
