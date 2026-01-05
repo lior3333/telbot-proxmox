@@ -101,3 +101,41 @@ class ProxmoxClient:
             return "stopping"
 
         return "already_stopped"
+
+    def get_vm_ip(self, vmid: int) -> str:
+        try:
+            interfaces = self.proxmox.nodes(PROXMOX_NODE).qemu(vmid).agent.network_get_interfaces.get()
+            for iface in interfaces.get("result", []):
+                for ip_info in iface.get("ip-addresses", []):
+                    ip = ip_info.get("ip-address")
+                    ip_type = ip_info.get("ip-address-type")
+                    if ip_type == "ipv4" and ip != "127.0.0.1":
+                        return ip
+            return "IP not found"
+        except Exception:
+            return "QEMU Agent not running or not installed"
+
+    def get_vm_resource_usage(self, vmid: int) -> dict:
+        try:
+            status = self.proxmox.nodes(PROXMOX_NODE).qemu(vmid).status.current.get()
+            
+            # CPU usage
+            cpu_usage = status.get("cpu", 0) * 100 # Convert to percentage
+            max_cpu = status.get("cpus", 1) 
+            
+            # RAM usage
+            mem_used = status.get("mem", 0)
+            max_mem = status.get("maxmem", 0)
+            mem_usage_percent = (mem_used / max_mem) * 100 if max_mem > 0 else 0
+            
+            return {
+                "cpu_usage": round(cpu_usage, 2),
+                "max_cpu": max_cpu,
+                "mem_used_u": round(mem_used / (1024 * 1024), 2), # MB
+                "max_mem_u": round(max_mem / (1024 * 1024), 2),   # MB
+                "mem_usage_percent": round(mem_usage_percent, 2)
+            }
+        except Exception as e:
+            return {
+                "error": str(e)
+            }
